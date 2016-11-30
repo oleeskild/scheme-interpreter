@@ -1,12 +1,6 @@
 module Scheme where
 import Data.Char
 
-{-
-Procedure String [Ast]
-Procedure name arguments rest 
-
--}
-
 operators = "+-*/#";
 procedures=["double"]
 
@@ -28,22 +22,6 @@ tokenize (x:xs) | isDigit x = [x:(takeWhile isDigit xs)] ++ (tokenize (dropWhile
                 | x == '(' || x == ')' = [x]:tokenize xs
                 | x == ';' = [x]:tokenize xs
                 | otherwise = tokenize xs
-
-{-- Start: Trenge kanskje ikkje å skriva parser ettersom scheme basically e abstract syntax allerede...
-parseExpr::[String] -> (Ast, [String])
-parseExpr ("(":xs) = parseExpr xs
-parseExpr (")":xs) = parseExpr xs
-
-parseExpr (x:xs) | isDigit (head x) = (Number (read x), xs)
-                 | elem (head x) operators = parseProcedure (x:xs)   
-                 --elem x procedures = let (ast,rest) = parseExpr xs in ((Procedure x ast),rest)
-                 | otherwise = parseExpr xs
-
-parseProcedure::[String] -> (Ast, [String])
-parseProcedure (x:xs) | elem (head x) operators = let (ast1,rest) = parseExpr xs in let (ast2, rest2) = parseExpr rest in ((Procedure x ast1 ast2), rest2)  
-                      | otherwise = parseExpr (xs)
-
----}
 
 
 eval::[String] -> Context -> Memory -> (Ast, [String], Context, Memory)
