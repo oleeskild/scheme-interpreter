@@ -8,7 +8,7 @@ type Context = Dictionary String Int
 type Memory = Dictionary Int Ast
 
 data Ast = Number Double | Block [Ast] | 
-           If Ast Ast Ast | Let String Ast | Lambda String Ast | Boolean String |
+           If Ast Ast Ast | Let String Ast | Lambda [String] [String] | Boolean String | --lambda string (parametre), string (body)
            Procedure String
            
            deriving (Eq, Show, Ord)
@@ -96,27 +96,68 @@ eval ("let":xs) con mem =   if (head expression == "(")
                     
 
 eval (x:xs) con mem | isDigit (head x) = (Number (read x), xs, con, mem)
-                    | isAlpha (head x) && exist x con && not (isProcedure value) = (value, xs, con, mem)  
-                    | isAlpha (head x) && exist x con && isProcedure value = let (Procedure name) = value in eval (name:xs) con mem            
+                    | isAlpha (head x) && exist x con && isProcedure value = let (Procedure name) = value in eval (name:xs) con mem
+                    | isAlpha (head x) && exist x con && isLambda value = eval body localCon localMem 
+                    | isAlpha (head x) && exist x con = (value, xs, con, mem)       
                     | isAlpha (head x) && not (exist x con) = error $ "The variable " ++ x ++ " does not exist in scope"
                     | otherwise = eval xs con mem
                     where
                         memoryIndex = find x con
                         value = find memoryIndex mem
+                        (Lambda parameters body) = value
+                        numberOfArguments = length parameters
+                        argumentList = evalList [] xs con mem numberOfArguments
+                        (localCon, localMem) = addListToMemory parameters argumentList con mem
+                        --(argument, rest, newCon, newMem) = eval xs con mem
+                        --(localCon, localMem) = ((insert (head parameters) (length newMem) newCon), (insert (length newMem) argument newMem))
 
-isProcedure::Ast -> Bool
-isProcedure (Procedure _) = True
-isProcedure _ = False
+
+
+addListToMemory::[String] -> [Ast] -> Context -> Memory -> (Context, Memory)
+addListToMemory [] [] con mem = (con, mem)
+addListToMemory (n:names) (v:values) con mem = addListToMemory names values newCon newMem
+                                    where
+                                        memoryIndex = length mem
+                                        (newCon, newMem) = (insert n memoryIndex con, insert memoryIndex v mem)
+
+
+evalList::[Ast] -> [String] -> Context -> Memory -> Int -> [Ast]
+evalList arguments xs con mem 0 = arguments
+evalList arguments (xs) con mem argumentsLeft = let (value, rest, newCon, newMem) = eval xs con mem 
+                                                                in evalList (arguments ++ [value]) rest newCon newMem (argumentsLeft-1)
+
+
 
 evalExpr::[String] -> Context -> Memory -> (Ast, [String], Context, Memory)
-evalExpr (x:xs) con mem = if elem (head x) operators || elem x procedures -- TODO: senere sjekk om det generelt er en metode, ikke bare operator
-                          then (Procedure x, xs, con, mem)
-                          else eval (x:xs) con mem
-                          where
-                              memoryIndex = length mem
-                              (updatedCon, updatedMem) = (insert x memoryIndex con, insert memoryIndex (Procedure x) mem)
+evalExpr (x:y:xs) con mem = if elem (head x) operators || elem x procedures -- TODO: senere sjekk om det generelt er en metode, ikke bare operator
+                          then (Procedure x, y:xs, con, mem)
+                          else if y == "lambda"
+                               then insertLambda xs con mem
+                               else eval (x:y:xs) con mem
 
                             
+
+
+-- LAMBDA
+insertLambda::[String] -> Context -> Memory -> (Ast, [String], Context, Memory)
+insertLambda (xs) con mem = (value, rest2, con, mem)
+                where
+                    (parameters, rest) = parseLambdaParameters [] (tail xs) 1 -- tail removes the first parantheses so it doesn't hit basecase right away
+                    (body,rest2) = parseLambdaBody [] rest 1
+                    value = (Lambda parameters body)
+
+--Integer is a counter for how many remaining parantheses there are. When it hits 0 we are done.
+parseLambdaBody::[String] -> [String] -> Int -> ([String], [String])
+parseLambdaBody tokens (x:xs) 0 = (["("] ++ tokens, xs)
+parseLambdaBody tokens (x:xs) counter | x == "(" = (parseLambdaBody (tokens ++ [x]) xs (counter+1))
+                                      | x == ")" = (parseLambdaBody (tokens ++ [x]) xs (counter-1))
+                                      | otherwise = (parseLambdaBody (tokens ++ [x]) xs counter)
+
+parseLambdaParameters::[String] -> [String] -> Int -> ([String], [String])
+parseLambdaParameters tokens (x:xs) 0 = (tokens, xs)
+parseLambdaParameters tokens (x:xs) counter | x == "(" = (parseLambdaParameters tokens xs (counter+1))
+                                            | x == ")" = (parseLambdaParameters tokens xs (counter-1))
+                                            | otherwise = (parseLambdaParameters (tokens ++ [x]) xs counter)
 
 
 
@@ -124,8 +165,18 @@ evalExpr (x:xs) con mem = if elem (head x) operators || elem x procedures -- TOD
 run::String -> Ast
 run program = first $ eval (tokenize program) [] []
 
+--helper functions
 first::(Ast, [String], Context, Memory) -> Ast
 first (first, second, third, fourth) = first
+
+isProcedure::Ast -> Bool
+isProcedure (Procedure _) = True
+isProcedure _ = False
+
+isLambda::Ast -> Bool
+isLambda (Lambda _ _) = True
+isLambda _ = False
+
 
 
 --Dictionary type
