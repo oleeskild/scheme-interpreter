@@ -2,27 +2,28 @@ module Scheme where
 import Data.Char
 
 operators = "+-*/#";
-procedures=["double"]
+procedures=["double", "square"];
 
 type Context = Dictionary String Int
 type Memory = Dictionary Int Ast
 
 data Ast = Number Double | If Ast Ast Ast | Let String Ast | 
            Lambda [String] [String] | Boolean String | Procedure String
-           
-           
            deriving (Eq, Show, Ord)
 
 
 tokenize::String -> [String]
 tokenize [] = []
-tokenize (x:xs) | isDigit x = [x:(takeWhile isDigit xs)] ++ (tokenize (dropWhile isDigit xs))
+tokenize (x:xs) | isDigit x = [x:(takeWhile isNumberPart xs)] ++ (tokenize (dropWhile isNumberPart xs))
                 | elem x operators  = [x:(takeWhile isAlpha xs)] ++ (tokenize (dropWhile isAlpha xs))
                 | isAlpha x =  [x:(takeWhile isAlpha xs)] ++ (tokenize (dropWhile isAlpha xs))
                 | x == '(' || x == ')' = [x]:tokenize xs
                 | x == ';' = [x]:tokenize xs
                 | otherwise = tokenize xs
 
+--tokenizer helpers
+isNumberPart::Char -> Bool
+isNumberPart number = isDigit number || number == '.'
 
 eval::[String] -> Context -> Memory -> (Ast, [String], Context, Memory)
 eval ("(":xs) con mem = eval xs con mem
@@ -57,6 +58,7 @@ eval ("*":xs) con mem = if (head leftOvers) /= ")"
                     (Number num1, rest, con1, mem1) = eval xs con mem
                     (Number num2, leftOvers, con2, mem2) = eval rest con1 mem1
 
+-- === BUILT-IN PROCEDURES === --
 eval ("double":xs) con mem = let (Number num, leftOvers, con1, mem1) = eval xs con mem in 
                     if (head leftOvers /= ")")
                     then error "Expected closing parantheses" 
@@ -109,7 +111,7 @@ eval (x:xs) con mem | isDigit (head x) = (Number (read x), xs, con, mem)
 
 
 evalExpr::[String] -> Context -> Memory -> (Ast, [String], Context, Memory)
-evalExpr (x:y:xs) con mem = if elem (head x) operators || elem x procedures -- TODO: senere sjekk om det generelt er en metode, ikke bare operator
+evalExpr (x:y:xs) con mem = if elem (head x) operators || elem x procedures
                           then (Procedure x, y:xs, con, mem)
                           else if y == "lambda"
                                then insertLambda xs con mem
