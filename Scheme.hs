@@ -85,14 +85,14 @@ eval ("#f":xs) con mem = (Boolean "#f", xs, con, mem)
 eval ("let":xs) con mem =   if (head expression == "(")
                             then error "There seems to be to many parantheses after let"
                             else if (head body == ")") && (head (tail body) /= ")") -- means there are more let expressions
-                                 then eval ("let":body) con2 mem2
-                                 else eval body con2 mem2
+                                 then eval ("let":body) newCon newMem
+                                 else eval body newCon newMem
                             where 
                                 expression = tail $ tail xs -- removed starting parantheses
                                 (varName) = head expression
                                 (value, body, con1, mem1) = evalExpr (tail expression) con mem
                                 memoryIndex = length mem1
-                                (con2, mem2) = (insert varName memoryIndex con1, insert memoryIndex value mem1)
+                                (newCon, newMem) = (insert varName memoryIndex con1, insert memoryIndex value mem1)
                     
 
 eval (x:xs) con mem | isDigit (head x) = (Number (read x), xs, con, mem)
