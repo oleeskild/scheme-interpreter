@@ -7,9 +7,9 @@ procedures=["double"]
 type Context = Dictionary String Int
 type Memory = Dictionary Int Ast
 
-data Ast = Number Double | Block [Ast] | 
-           If Ast Ast Ast | Let String Ast | Lambda [String] [String] | Boolean String | --lambda string (parametre), string (body)
-           Procedure String
+data Ast = Number Double | If Ast Ast Ast | Let String Ast | 
+           Lambda [String] [String] | Boolean String | Procedure String
+           
            
            deriving (Eq, Show, Ord)
 
@@ -28,7 +28,7 @@ eval::[String] -> Context -> Memory -> (Ast, [String], Context, Memory)
 eval ("(":xs) con mem = eval xs con mem
 eval (")":xs) con mem = eval xs con mem
 
--- Operators
+-- === OPERATORS === --
 eval ("+":xs) con mem = if (head leftOvers) /= ")"
                         then error "Expected closing parantheses"
                         else (Number (num1 + num2), tail leftOvers, con2, mem2) -- remove last parantheses with tail
@@ -67,7 +67,7 @@ eval ("square":xs) con mem = (Number (num*num), tail leftOvers, con1, mem1)
                         (Number num, leftOvers, con1, mem1) = eval xs con mem
 
 
--- If implementation
+-- === IF === --
 eval ("if":xs) con mem =    if bool == "#t"
                     then (expr1, tail rest2, con2, mem2)
                     else (expr2, tail rest2, con3, mem3)
@@ -79,9 +79,7 @@ eval ("if":xs) con mem =    if bool == "#t"
 eval ("#t":xs) con mem = (Boolean "#t", xs, con, mem)
 eval ("#f":xs) con mem = (Boolean "#f", xs, con, mem)
 
-------
-
--- Let implementation
+-- === LET === --
 eval ("let":xs) con mem =   if (head expression == "(")
                             then error "There seems to be to many parantheses after let"
                             else if (head body == ")") && (head (tail body) /= ")") -- means there are more let expressions
@@ -108,24 +106,6 @@ eval (x:xs) con mem | isDigit (head x) = (Number (read x), xs, con, mem)
                         numberOfArguments = length parameters
                         argumentList = evalList [] xs con mem numberOfArguments
                         (localCon, localMem) = addListToMemory parameters argumentList con mem
-                        --(argument, rest, newCon, newMem) = eval xs con mem
-                        --(localCon, localMem) = ((insert (head parameters) (length newMem) newCon), (insert (length newMem) argument newMem))
-
-
-
-addListToMemory::[String] -> [Ast] -> Context -> Memory -> (Context, Memory)
-addListToMemory [] [] con mem = (con, mem)
-addListToMemory (n:names) (v:values) con mem = addListToMemory names values newCon newMem
-                                    where
-                                        memoryIndex = length mem
-                                        (newCon, newMem) = (insert n memoryIndex con, insert memoryIndex v mem)
-
-
-evalList::[Ast] -> [String] -> Context -> Memory -> Int -> [Ast]
-evalList arguments xs con mem 0 = arguments
-evalList arguments (xs) con mem argumentsLeft = let (value, rest, newCon, newMem) = eval xs con mem 
-                                                                in evalList (arguments ++ [value]) rest newCon newMem (argumentsLeft-1)
-
 
 
 evalExpr::[String] -> Context -> Memory -> (Ast, [String], Context, Memory)
@@ -135,10 +115,7 @@ evalExpr (x:y:xs) con mem = if elem (head x) operators || elem x procedures -- T
                                then insertLambda xs con mem
                                else eval (x:y:xs) con mem
 
-                            
-
-
--- LAMBDA
+-- === LAMBDA === --
 insertLambda::[String] -> Context -> Memory -> (Ast, [String], Context, Memory)
 insertLambda (xs) con mem = (value, rest2, con, mem)
                 where
@@ -161,7 +138,7 @@ parseLambdaParameters tokens (x:xs) counter | x == "(" = (parseLambdaParameters 
 
 
 
--- Takes scheme code as argument an runs it
+-- Takes scheme code as argument an interprets it
 run::String -> Ast
 run program = first $ eval (tokenize program) [] []
 
@@ -176,6 +153,18 @@ isProcedure _ = False
 isLambda::Ast -> Bool
 isLambda (Lambda _ _) = True
 isLambda _ = False
+
+addListToMemory::[String] -> [Ast] -> Context -> Memory -> (Context, Memory)
+addListToMemory [] [] con mem = (con, mem)
+addListToMemory (n:names) (v:values) con mem = addListToMemory names values newCon newMem
+                                    where
+                                        memoryIndex = length mem
+                                        (newCon, newMem) = (insert n memoryIndex con, insert memoryIndex v mem)
+
+evalList::[Ast] -> [String] -> Context -> Memory -> Int -> [Ast]
+evalList arguments xs con mem 0 = arguments
+evalList arguments (xs) con mem argumentsLeft = let (value, rest, newCon, newMem) = eval xs con mem 
+                                                                in evalList (arguments ++ [value]) rest newCon newMem (argumentsLeft-1)
 
 
 
