@@ -18,7 +18,6 @@ tokenize (x:xs) | isDigit x = [x:(takeWhile isNumberPart xs)] ++ (tokenize (drop
                 | elem x operators  = [x:(takeWhile isAlpha xs)] ++ (tokenize (dropWhile isAlpha xs))
                 | isAlpha x =  [x:(takeWhile isAlpha xs)] ++ (tokenize (dropWhile isAlpha xs))
                 | x == '(' || x == ')' = [x]:tokenize xs
-                | x == ';' = [x]:tokenize xs
                 | otherwise = tokenize xs
 
 --tokenizer helpers
